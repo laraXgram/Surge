@@ -1,2 +1,2 @@
-# Surge
+# LaraGram Surge
 LaraGram Supercharger!

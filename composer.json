@@ -1,0 +1,52 @@
+{
+    "name": "laraxgram/surge",
+    "description": "Supercharge your LaraGram application's performance.",
+    "keywords": ["laragram", "surge", "openswoole", "swoole", "octane", "laravel"],
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/laraxgram/surge/issues",
+        "source": "https://github.com/laraxgram/surge"
+    },
+    "authors": [
+        {
+            "name": "LaraXGram",
+            "email": "laraxgram@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2.0",
+        "laraxgram/core": "^3",
+        "laraxgram/tempora": "^1"
+    },
+    "bin": [
+        "bin/swoole-server"
+    ],
+    "autoload": {
+        "psr-4": {
+            "LaraGram\\Surge\\": "src"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@php vendor/bin/testbench package:discover --ansi"
+        ]
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        },
+        "laragram": {
+            "providers": [
+                "LaraGram\\Surge\\SurgeServiceProvider"
+            ],
+            "aliases": {
+                "Surge": "LaraGram\\Surge\\Facades\\Surge"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
