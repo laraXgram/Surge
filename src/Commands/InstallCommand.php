@@ -90,8 +90,12 @@ class InstallCommand extends Command
      */
     public function installSwooleServer()
     {
-        if (! resolve(SwooleExtension::class)->isInstalled()) {
+        if (! ($extension = resolve(SwooleExtension::class))->isInstalled()) {
             $this->components->warn('The Swoole/OpenSwoole extension is missing.');
+        }
+
+        if (! $extension->installIdeHelper()) {
+            $this->components->warn('Failed to install the Swoole/OpenSwoole IDE helper.');
         }
 
         return true;

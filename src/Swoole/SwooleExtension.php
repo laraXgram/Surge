@@ -4,6 +4,9 @@ namespace LaraGram\Surge\Swoole;
 
 use Swoole\Process;
 
+use function LaraGram\Console\Prompts\select;
+use function LaraGram\Console\Prompts\spin;
+
 class SwooleExtension
 {
     /**
@@ -50,5 +53,29 @@ class SwooleExtension
         }
 
         return 1;
+    }
+
+    /**
+     * Install Swoole/OpenSwoole IDE helper.
+     *
+     * @return bool
+     */
+    public function installIdeHelper()
+    {
+        $package = match (select(
+            label: "Which extension do you want to use?",
+            options: ['OpenSwoole', 'Swoole']
+        )) {
+            'OpenSwoole' => 'openswoole/core',
+            'Swoole' => 'swoole/ide-helper'
+        };
+
+        return spin(
+            callback: function () use ($package) {
+                return resolve('composer')
+                    ->requirePackages([$package]);
+            },
+            message: "Installing ".$package
+        );
     }
 }
