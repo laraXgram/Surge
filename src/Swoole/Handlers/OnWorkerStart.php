@@ -2,6 +2,7 @@
 
 namespace LaraGram\Surge\Swoole\Handlers;
 
+use LaraGram\Support\Str;
 use LaraGram\Surge\ApplicationFactory;
 use LaraGram\Surge\Stream;
 use LaraGram\Surge\Swoole\SwooleClient;
@@ -98,13 +99,17 @@ class OnWorkerStart
                 return;
             }
 
+            $pattern = $request->message->text
+                ?? $request->message->caption
+                ?? $request->callback_query->data
+                ?? $request->inline_query->query
+                ?? '*';
+
+            $pattern = Str::limit($pattern, 8, '...');
+
             Stream::request(
                 $request->method(),
-                $request->message->text ??
-                        $request->message->caption ??
-                        $request->callback_query->data ??
-                        $request->inline_query->query ??
-                        '*',
+                $pattern,
                 (microtime(true) - $this->workerState->lastRequestTime) * 1000,
             );
         });
