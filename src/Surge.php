@@ -13,6 +13,7 @@ class Surge
     use Concerns\ProvidesConcurrencySupport;
     use Concerns\ProvidesDefaultConfigurationOptions;
     use Concerns\ProvidesListening;
+    use Concerns\RegistersProcesses;
     use Concerns\RegistersTickHandlers;
 
     /**

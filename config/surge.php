@@ -28,7 +28,7 @@ return [
     | when starting, restarting, or stopping your server via the CLI. You
     | are free to change this to the supported server of your choosing.
     |
-    | Supported: "swoole"
+    | Supported: "swoole", "openswoole"
     |
     */
 
@@ -129,6 +129,24 @@ return [
 
     'flush' => [
         //
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Surge Background Processes
+    |--------------------------------------------------------------------------
+    |
+    | These long-lived processes are launched alongside the Surge server and
+    | supervised by it (restarted automatically if they exit). Each entry is
+    | an invokable class. booted with its own application instance once, and
+    | is ideal for persistent listeners.
+    |
+    | The "handler" is invoked as: ($application, $process, $server).
+    |
+    */
+
+    'processes' => [
+        // ['handler' => Listener::class, 'name' => 'mtproto-pump', 'coroutine' => true]
     ],
 
     /*

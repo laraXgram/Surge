@@ -3,12 +3,14 @@
 
 use LaraGram\Surge\RequestContext;
 use LaraGram\Surge\Swoole\Handlers\OnManagerStart;
+use LaraGram\Surge\Swoole\Handlers\OnProcessStart;
 use LaraGram\Surge\Swoole\Handlers\OnServerStart;
 use LaraGram\Surge\Swoole\Handlers\OnWorkerStart;
 use LaraGram\Surge\Swoole\ServerStateFile;
 use LaraGram\Surge\Swoole\SwooleExtension;
 use LaraGram\Surge\Swoole\WorkerState;
 use Swoole\Http\Server;
+use Swoole\Process;
 use Swoole\Timer;
 
 ini_set('display_errors', 'stderr');
@@ -166,5 +168,40 @@ $server->on('workerstop', function () use ($workerState) {
 
     $workerState->worker->terminate();
 });
+
+/*
+|--------------------------------------------------------------------------
+| Register Background Processes
+|--------------------------------------------------------------------------
+|
+| Surge can supervise long-lived background processes (declared in the
+| "processes" config) alongside the HTTP workers; ideal for persistent
+| listeners. Each is launched in its own forked process with a freshly-booted
+| application instance, and Swoole restarts it automatically if it exits.
+|
+*/
+
+require_once __DIR__.'/../src/Swoole/Handlers/OnProcessStart.php';
+
+foreach ($serverState['surgeConfig']['processes'] ?? [] as $process) {
+    [$handlerClass, $processName, $enableCoroutine] = is_array($process)
+        ? [$process['handler'], $process['name'] ?? null, $process['coroutine'] ?? true]
+        : [$process, null, true];
+
+    $server->addProcess(new Process(
+        function (Process $proc) use ($server, $serverState, $bootstrap, $handlerClass, $processName) {
+            // Load the autoloader inside the forked process and resolve the base
+            // path; the application boots once here for the life of the process.
+            $basePath = $bootstrap($serverState);
+
+            (new OnProcessStart(
+                new SwooleExtension, $basePath, $serverState, $handlerClass, $processName
+            ))($server, $proc);
+        },
+        false,
+        0,
+        $enableCoroutine
+    ));
+}
 
 $server->start();
