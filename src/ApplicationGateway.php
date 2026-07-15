@@ -3,13 +3,13 @@
 namespace LaraGram\Surge;
 
 use LaraGram\Contracts\Bot\Kernel;
+use LaraGram\Contracts\Http\Kernel as HttpKernel;
 use LaraGram\Foundation\Application;
-use LaraGram\Request\Request;
+use LaraGram\Http\Request as HttpRequest;
 use LaraGram\Listening\Listen;
 use LaraGram\Surge\Events\RequestHandled;
 use LaraGram\Surge\Events\RequestReceived;
 use LaraGram\Surge\Events\RequestTerminated;
-use LaraGram\Request\Response;
 
 class ApplicationGateway
 {
@@ -21,12 +21,17 @@ class ApplicationGateway
 
     /**
      * Handle an incoming request.
+     *
+     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
+     * @return \LaraGram\Request\Response|\LaraGram\Http\Response
      */
-    public function handle(Request $request): Response
+    public function handle($request)
     {
         $this->dispatchEvent($this->sandbox, new RequestReceived($this->app, $this->sandbox, $request));
 
-        return tap($this->sandbox->make(Kernel::class)->handle($request), function ($response) use ($request) {
+        $kernel = $request instanceof HttpRequest ? HttpKernel::class : Kernel::class;
+
+        return tap($this->sandbox->make($kernel)->handle($request), function ($response) use ($request) {
             $this->dispatchEvent($this->sandbox, new RequestHandled($this->sandbox, $request, $response));
         });
     }
@@ -34,8 +39,16 @@ class ApplicationGateway
     /**
      * "Shut down" the application after a request.
      */
-    public function terminate(Request $request, Response $response): void
+    public function terminate($request, $response): void
     {
+        if ($request instanceof HttpRequest) {
+            $this->sandbox->make(HttpKernel::class)->terminate($request, $response);
+
+            $this->dispatchEvent($this->sandbox, new RequestTerminated($this->app, $this->sandbox, $request, $response));
+
+            return;
+        }
+
         $this->sandbox->make(Kernel::class)->terminate($request, $response);
 
         $this->dispatchEvent($this->sandbox, new RequestTerminated($this->app, $this->sandbox, $request, $response));

@@ -20,16 +20,47 @@ class SwooleClient implements Client
 
     /**
      * Marshal the given request context into an LaraGram request.
+     *
+     * Bot webhook updates are acknowledged and offloaded to a task worker before
+     * this point, so the synchronous request path only ever serves web (browser)
+     * traffic - which must run through the HTTP kernel, not the bot kernel.
      */
     public function marshalRequest(RequestContext $context): array
     {
         return [
-            (new Actions\ConvertSwooleRequestToLaraGramRequest())(
-                $context->swooleRequest,
-                PHP_SAPI
+            (new Actions\ConvertSwooleRequestToLaraGramHttpRequest())(
+                $context->swooleRequest
             ),
             $context,
         ];
+    }
+
+    /**
+     * Marshal a bot webhook update into a serializable task payload.
+     *
+     * Returns the argv-like array consumed by Request::createFromBase() when the
+     * incoming request is a Telegram update (identified by "update_id"), or null
+     * for regular web requests. The payload contains only scalars so it can be
+     * shipped to a Swoole task worker for background (non-blocking) processing.
+     *
+     * @param  \Swoole\Http\Request  $swooleRequest
+     * @return array|null
+     */
+    public function marshalBotUpdate($swooleRequest): ?array
+    {
+        $content = $swooleRequest->getContent();
+
+        $decoded = json_decode($content, true);
+
+        $isBotUpdate = json_last_error() === JSON_ERROR_NONE
+            && is_array($decoded)
+            && array_key_exists('update_id', $decoded);
+
+        if (! $isBotUpdate) {
+            return null;
+        }
+
+        return (new Actions\ConvertSwooleRequestToLaraGramRequest())->toArgv($swooleRequest, PHP_SAPI);
     }
 
     /**
@@ -76,7 +107,7 @@ class SwooleClient implements Client
     /**
      * Send an error message to the server.
      */
-    public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
+    public function error(Throwable $e, Application $app, $request, RequestContext $context): void
     {
         $context->swooleResponse->header('Status', '500 Internal Server Error');
         $context->swooleResponse->header('Content-Type', 'text/plain');

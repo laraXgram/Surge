@@ -3,19 +3,21 @@
 namespace LaraGram\Surge\Events;
 
 use LaraGram\Foundation\Application;
-use LaraGram\Request\Request;
 use LaraGram\Surge\Contracts\OperationTerminated;
-use LaraGram\Request\Response;
 
 class RequestTerminated implements OperationTerminated
 {
     use HasApplicationAndSandbox;
 
+    /**
+     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
+     * @param  \LaraGram\Request\Response|\LaraGram\Http\Response  $response
+     */
     public function __construct(
         public Application $app,
         public Application $sandbox,
-        public Request $request,
-        public Response $response
+        public $request,
+        public $response
     ) {
     }
 }

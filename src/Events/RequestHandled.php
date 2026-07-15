@@ -3,15 +3,17 @@
 namespace LaraGram\Surge\Events;
 
 use LaraGram\Foundation\Application;
-use LaraGram\Request\Request;
-use LaraGram\Request\Response;
 
 class RequestHandled
 {
+    /**
+     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
+     * @param  \LaraGram\Request\Response|\LaraGram\Http\Response  $response
+     */
     public function __construct(
         public Application $sandbox,
-        public Request $request,
-        public Response $response
+        public $request,
+        public $response
     ) {
     }
 }

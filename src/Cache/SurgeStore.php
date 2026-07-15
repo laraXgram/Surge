@@ -150,6 +150,27 @@ class SurgeStore implements Store
     }
 
     /**
+     * Set the expiration of a cached item.
+     *
+     * @param  string  $key
+     * @param  int  $seconds
+     * @return bool
+     */
+    public function touch($key, $seconds)
+    {
+        $record = $this->table->get($key);
+
+        if ($this->recordIsFalseOrExpired($record)) {
+            return false;
+        }
+
+        return $this->table->set($key, [
+            'value' => $record['value'],
+            'expiration' => Tempora::now()->getTimestamp() + $seconds,
+        ]);
+    }
+
+    /**
      * Register a cache key that should be refreshed at a given interval (in minutes).
      *
      * @param  string  $key

@@ -59,7 +59,7 @@ class Worker implements WorkerContract
     /**
      * Handle an incoming request and send the response to the client.
      */
-    public function handle(Request $request, RequestContext $context): void
+    public function handle($request, RequestContext $context): void
     {
         // We will clone the application instance so that we have a clean copy to switch
         // back to once the request has been handled. This allows us to easily delete
@@ -106,6 +106,44 @@ class Worker implements WorkerContract
             // plus reset the current application state back to its original state before
             // it was cloned. Then we will be ready for the next worker iteration loop.
             unset($gateway, $sandbox, $context, $request, $response, $surgeResponse, $output);
+
+            CurrentApplication::set($this->app);
+        }
+    }
+
+    /**
+     * Handle a Telegram webhook update dispatched as a background task.
+     *
+     * The webhook connection has already been answered with a 200 by the request
+     * worker, so here we simply run the update through the application. Listeners
+     * deliver their replies via the Telegram API, so the response produced by the
+     * kernel is not sent anywhere - it is discarded once the request terminates.
+     *
+     * @param  array  $argv  The argv-like payload for Request::createFromBase().
+     */
+    public function handleBotUpdate(array $argv): void
+    {
+        CurrentApplication::set($sandbox = clone $this->app);
+
+        $gateway = new ApplicationGateway($this->app, $sandbox);
+
+        $request = Request::createFromBase($argv);
+
+        try {
+            $response = $gateway->handle($request);
+
+            $this->invokeRequestHandledCallbacks($request, $response, $sandbox);
+
+            $gateway->terminate($request, $response);
+        } catch (Throwable $e) {
+            $this->dispatchEvent($sandbox, new WorkerErrorOccurred($e, $sandbox));
+        } finally {
+            $sandbox->flush();
+
+            $this->app->make('template.engine.resolver')->forget('blade');
+            $this->app->make('template.engine.resolver')->forget('php');
+
+            unset($gateway, $sandbox, $request, $response);
 
             CurrentApplication::set($this->app);
         }
@@ -177,7 +215,7 @@ class Worker implements WorkerContract
     protected function handleWorkerError(
         Throwable $e,
         Application $app,
-        Request $request,
+        $request,
         RequestContext $context,
         bool $hasResponded
     ): void {

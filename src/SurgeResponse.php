@@ -2,11 +2,12 @@
 
 namespace LaraGram\Surge;
 
-use LaraGram\Request\Response;
-
 class SurgeResponse
 {
-    public function __construct(public Response $response, public ?string $outputBuffer = null)
+    /**
+     * @param  \LaraGram\Request\Response|\LaraGram\Http\Response  $response
+     */
+    public function __construct(public $response, public ?string $outputBuffer = null)
     {
     }
 }

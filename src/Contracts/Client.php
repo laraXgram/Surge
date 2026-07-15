@@ -3,7 +3,6 @@
 namespace LaraGram\Surge\Contracts;
 
 use LaraGram\Foundation\Application;
-use LaraGram\Request\Request;
 use LaraGram\Surge\SurgeResponse;
 use LaraGram\Surge\RequestContext;
 use Throwable;
@@ -22,6 +21,8 @@ interface Client
 
     /**
      * Send an error message to the server.
+     *
+     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
      */
-    public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void;
+    public function error(Throwable $e, Application $app, $request, RequestContext $context): void;
 }

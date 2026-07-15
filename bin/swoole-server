@@ -119,12 +119,24 @@ $server->on('request', function ($request, $response) use ($server, $workerState
         ]);
     }
 
-    $workerState->worker->handle(...$workerState->client->marshalRequest(new RequestContext([
-        'swooleRequest' => $request,
-        'swooleResponse' => $response,
-        'publicPath' => $serverState['publicPath'],
-        'surgeConfig' => $serverState['surgeConfig'],
-    ])));
+    // Telegram webhook updates must be acknowledged immediately so the bot never
+    // blocks the webhook connection while listeners run. We reply 200 right away
+    // and offload the actual update processing to a background task worker. This
+    // mirrors the fork/popen model of the traditional (php-fpm) entrypoint, but
+    // reuses Swoole's pooled task workers instead of spawning a process per update.
+    if (($botUpdate = $workerState->client->marshalBotUpdate($request)) !== null) {
+        $response->status(200);
+        $response->end();
+
+        $server->task(['surge-bot-update', $botUpdate]);
+    } else {
+        $workerState->worker->handle(...$workerState->client->marshalRequest(new RequestContext([
+            'swooleRequest' => $request,
+            'swooleResponse' => $response,
+            'publicPath' => $serverState['publicPath'],
+            'surgeConfig' => $serverState['surgeConfig'],
+        ])));
+    }
 
     if ($workerState->timerTable) {
         $workerState->timerTable->del($workerState->workerId);
@@ -142,11 +154,17 @@ $server->on('request', function ($request, $response) use ($server, $workerState
 |
 */
 
-$server->on('task', fn (Server $server, int $taskId, int $fromWorkerId, $data) =>
-    $data === 'surge-tick'
-            ? $workerState->worker->handleTick()
-            : $workerState->worker->handleTask($data)
-);
+$server->on('task', function (Server $server, int $taskId, int $fromWorkerId, $data) use ($workerState) {
+    if ($data === 'surge-tick') {
+        return $workerState->worker->handleTick();
+    }
+
+    if (is_array($data) && ($data[0] ?? null) === 'surge-bot-update') {
+        return $workerState->worker->handleBotUpdate($data[1]);
+    }
+
+    return $workerState->worker->handleTask($data);
+});
 
 $server->on('finish', fn (Server $server, int $taskId, $result) => $result);
 
