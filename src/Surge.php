@@ -13,6 +13,7 @@ class Surge
     use Concerns\ProvidesConcurrencySupport;
     use Concerns\ProvidesDefaultConfigurationOptions;
     use Concerns\ProvidesListening;
+    use Concerns\ProvidesRouting;
     use Concerns\RegistersProcesses;
     use Concerns\RegistersTickHandlers;
 
@@ -32,6 +33,16 @@ class Surge
         }
 
         return $tables[$table];
+    }
+
+    /**
+     * Register the Surge dev commands.
+     */
+    public static function registerDevCommands(): void
+    {
+        if (class_exists(\LaraGram\Foundation\DevCommands::class)) {
+            \LaraGram\Foundation\DevCommands::commander('surge:start --watch', 'server');
+        }
     }
 
     /**

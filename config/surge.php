@@ -11,8 +11,14 @@ use LaraGram\Surge\Events\TickTerminated;
 use LaraGram\Surge\Events\WorkerErrorOccurred;
 use LaraGram\Surge\Events\WorkerStarting;
 use LaraGram\Surge\Events\WorkerStopping;
+use LaraGram\Surge\Listeners\CloseLogHandlers;
+use LaraGram\Surge\Listeners\CollectGarbage;
+use LaraGram\Surge\Listeners\DisconnectFromDatabases;
+use LaraGram\Surge\Listeners\EnsureUploadedFilesAreValid;
+use LaraGram\Surge\Listeners\EnsureUploadedFilesCanBeMoved;
 use LaraGram\Surge\Listeners\FlushOnce;
 use LaraGram\Surge\Listeners\FlushTemporaryContainerInstances;
+use LaraGram\Surge\Listeners\FlushUploadedFiles;
 use LaraGram\Surge\Listeners\ReportException;
 use LaraGram\Surge\Listeners\StopWorkerIfNecessary;
 use LaraGram\Surge\Surge;
@@ -28,7 +34,7 @@ return [
     | when starting, restarting, or stopping your server via the CLI. You
     | are free to change this to the supported server of your choosing.
     |
-    | Supported: "swoole", "openswoole"
+    | Supported: "roadrunner", "swoole", "frankenphp"
     |
     */
 
@@ -60,7 +66,8 @@ return [
 
     'listeners' => [
         WorkerStarting::class => [
-
+            EnsureUploadedFilesAreValid::class,
+            EnsureUploadedFilesCanBeMoved::class,
         ],
 
         RequestReceived::class => [
@@ -74,7 +81,7 @@ return [
         ],
 
         RequestTerminated::class => [
-
+            // FlushUploadedFiles::class,
         ],
 
         TaskReceived::class => [
@@ -108,7 +115,7 @@ return [
         ],
 
         WorkerStopping::class => [
-
+            CloseLogHandlers::class,
         ],
     ],
 
@@ -200,7 +207,9 @@ return [
         'config/**/*.php',
         'database/**/*.php',
         'public/**/*.php',
-        'listener/*.php',
+        'resources/**/*.php',
+        'routes',
+        'listens',
         'composer.lock',
         '.env',
     ],
@@ -230,5 +239,35 @@ return [
     */
 
     'max_execution_time' => 30,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Surge Server State File
+    |--------------------------------------------------------------------------
+    |
+    | This value determines where Surge stores the state file used to track
+    | the running server's master process ID and admin endpoint, which is
+    | read by various Surge commands. You may tweak this if necessary.
+    |
+    */
+
+    'state_file' => env('SURGE_STATE_FILE', storage_path('logs/surge-server-state.json')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | RoadRunner Options
+    |--------------------------------------------------------------------------
+    |
+    | The following options are only used when the RoadRunner server is the
+    | server powering your application. You may customize the path to the
+    | worker binary here, which is useful for zero-downtime deployments
+    | where the application is served from a symlinked "current" path.
+    |
+    */
+
+    'roadrunner' => [
+        'command' => env('SURGE_ROADRUNNER_COMMAND', 'vendor/bin/roadrunner-worker'),
+        'http_middleware' => env('SURGE_ROADRUNNER_HTTP_MIDDLEWARE', 'static'),
+    ],
 
 ];

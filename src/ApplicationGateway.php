@@ -2,14 +2,19 @@
 
 namespace LaraGram\Surge;
 
-use LaraGram\Contracts\Bot\Kernel;
-use LaraGram\Contracts\Http\Kernel as HttpKernel;
+use LaraGram\Contracts\Bot\Kernel as BotKernel;
+use LaraGram\Contracts\Http\Kernel;
 use LaraGram\Foundation\Application;
-use LaraGram\Http\Request as HttpRequest;
+use LaraGram\Http\BaseResponse as Response;
+use LaraGram\Http\Request;
 use LaraGram\Listening\Listen;
+use LaraGram\Request\Request as BotRequest;
+use LaraGram\Request\Response as BotResponse;
+use LaraGram\Routing\Route;
 use LaraGram\Surge\Events\RequestHandled;
 use LaraGram\Surge\Events\RequestReceived;
 use LaraGram\Surge\Events\RequestTerminated;
+use LaraGram\Surge\Facades\Surge;
 
 class ApplicationGateway
 {
@@ -22,16 +27,26 @@ class ApplicationGateway
     /**
      * Handle an incoming request.
      *
-     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
-     * @return \LaraGram\Request\Response|\LaraGram\Http\Response
+     * HTTP requests go through the HTTP kernel (routing) and Telegram bot requests
+     * through the bot kernel (listening).
      */
-    public function handle($request)
+    public function handle(Request|BotRequest $request): Response|BotResponse
     {
+        if ($request instanceof Request) {
+            $request->enableHttpMethodParameterOverride();
+        }
+
         $this->dispatchEvent($this->sandbox, new RequestReceived($this->app, $this->sandbox, $request));
 
-        $kernel = $request instanceof HttpRequest ? HttpKernel::class : Kernel::class;
+        if ($request instanceof Request) {
+            if (Surge::hasRouteFor($request->getMethod(), '/'.$request->path())) {
+                return Surge::invokeRoute($request, $request->getMethod(), '/'.$request->path());
+            }
+        } elseif (Surge::hasListenFor($verb = (string) $request->method(), $pattern = (string) $request->listenValue($verb))) {
+            return Surge::invokeListen($request, $verb, $pattern);
+        }
 
-        return tap($this->sandbox->make($kernel)->handle($request), function ($response) use ($request) {
+        return tap($this->kernel($request)->handle($request), function ($response) use ($request) {
             $this->dispatchEvent($this->sandbox, new RequestHandled($this->sandbox, $request, $response));
         });
     }
@@ -39,24 +54,26 @@ class ApplicationGateway
     /**
      * "Shut down" the application after a request.
      */
-    public function terminate($request, $response): void
+    public function terminate(Request|BotRequest $request, Response|BotResponse $response): void
     {
-        if ($request instanceof HttpRequest) {
-            $this->sandbox->make(HttpKernel::class)->terminate($request, $response);
-
-            $this->dispatchEvent($this->sandbox, new RequestTerminated($this->app, $this->sandbox, $request, $response));
-
-            return;
-        }
-
-        $this->sandbox->make(Kernel::class)->terminate($request, $response);
+        $this->kernel($request)->terminate($request, $response);
 
         $this->dispatchEvent($this->sandbox, new RequestTerminated($this->app, $this->sandbox, $request, $response));
 
-        $listen = $request->listen();
+        $route = $request instanceof Request ? $request->route() : $request->listen();
 
-        if ($listen instanceof Listen && method_exists($listen, 'flushController')) {
-            $listen->flushController();
+        if (($route instanceof Route || $route instanceof Listen) && method_exists($route, 'flushController')) {
+            $route->flushController();
         }
+    }
+
+    /**
+     * Get the kernel handling the given kind of request.
+     *
+     * @return \LaraGram\Contracts\Http\Kernel|\LaraGram\Contracts\Bot\Kernel
+     */
+    protected function kernel(Request|BotRequest $request)
+    {
+        return $this->sandbox->make($request instanceof Request ? Kernel::class : BotKernel::class);
     }
 }

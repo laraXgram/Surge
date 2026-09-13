@@ -17,6 +17,8 @@ ini_set('display_errors', 'stderr');
 
 require_once __DIR__.'/../src/Stream.php';
 
+require __DIR__.'/../fixes/fix-laragram-dd.php';
+
 $bootstrap = fn ($serverState) => require __DIR__.'/bootstrap.php';
 
 /*
@@ -119,12 +121,12 @@ $server->on('request', function ($request, $response) use ($server, $workerState
         ]);
     }
 
-    // Telegram webhook updates must be acknowledged immediately so the bot never
-    // blocks the webhook connection while listeners run. We reply 200 right away
-    // and offload the actual update processing to a background task worker. This
-    // mirrors the fork/popen model of the traditional (php-fpm) entrypoint, but
-    // reuses Swoole's pooled task workers instead of spawning a process per update.
-    if (($botUpdate = $workerState->client->marshalBotUpdate($request)) !== null) {
+    // Telegram webhook updates are acknowledged immediately so Telegram never waits
+    // on the listeners, and are then handled by a task worker (the equivalent of the
+    // background process started for each update by the PHP-FPM entrypoint). Without
+    // task workers the update is handled by this worker like any other request.
+    if (($server->setting['task_worker_num'] ?? 0) > 0 &&
+        ($botUpdate = $workerState->client->marshalBotUpdate($request)) !== null) {
         $response->status(200);
         $response->end();
 
@@ -160,6 +162,8 @@ $server->on('task', function (Server $server, int $taskId, int $fromWorkerId, $d
     }
 
     if (is_array($data) && ($data[0] ?? null) === 'surge-bot-update') {
+        $workerState->lastRequestTime = microtime(true);
+
         return $workerState->worker->handleBotUpdate($data[1]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace LaraGram\Surge\Listeners;
 
+use LaraGram\Http\Request as HttpRequest;
 use LaraGram\Support\Arr;
 use SplFileInfo;
 
@@ -14,6 +15,10 @@ class FlushUploadedFiles
      */
     public function handle($event): void
     {
+        if (! $event->request instanceof HttpRequest) {
+            return;
+        }
+
         foreach ($event->request->files->all() as $files) {
             foreach (Arr::wrap($files) as $file) {
                 if (! $file instanceof SplFileInfo ||

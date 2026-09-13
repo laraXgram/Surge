@@ -16,7 +16,7 @@ interface Worker
     /**
      * Handle an incoming request and send the response to the client.
      */
-    public function handle(BotRequest|HttpRequest $request, RequestContext $context): void;
+    public function handle(HttpRequest|BotRequest $request, RequestContext $context): void;
 
     /**
      * Handle an incoming task.

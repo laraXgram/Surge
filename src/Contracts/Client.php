@@ -3,14 +3,19 @@
 namespace LaraGram\Surge\Contracts;
 
 use LaraGram\Foundation\Application;
-use LaraGram\Surge\SurgeResponse;
+use LaraGram\Http\Request;
+use LaraGram\Request\Request as BotRequest;
 use LaraGram\Surge\RequestContext;
+use LaraGram\Surge\SurgeResponse;
 use Throwable;
 
 interface Client
 {
     /**
-     * Marshal the given request context into an LaraGram request.
+     * Marshal the given request context into a LaraGram request.
+     *
+     * The first element is a LaraGram\Http\Request for web requests, or a
+     * LaraGram\Request\Request for Telegram webhook updates.
      */
     public function marshalRequest(RequestContext $context): array;
 
@@ -21,8 +26,6 @@ interface Client
 
     /**
      * Send an error message to the server.
-     *
-     * @param  \LaraGram\Request\Request|\LaraGram\Http\Request  $request
      */
-    public function error(Throwable $e, Application $app, $request, RequestContext $context): void;
+    public function error(Throwable $e, Application $app, Request|BotRequest $request, RequestContext $context): void;
 }

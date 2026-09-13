@@ -2,6 +2,8 @@
 
 namespace LaraGram\Surge\Listeners;
 
+use LaraGram\Http\Request as HttpRequest;
+
 class EnsureRequestServerPortMatchesScheme
 {
     /**
@@ -11,6 +13,10 @@ class EnsureRequestServerPortMatchesScheme
      */
     public function handle($event): void
     {
+        if (! $event->request instanceof HttpRequest) {
+            return;
+        }
+
         $port = $event->request->getPort();
 
         if (is_null($port) || $port === '') {

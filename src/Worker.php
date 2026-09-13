@@ -4,8 +4,10 @@ namespace LaraGram\Surge;
 
 use Closure;
 use LaraGram\Foundation\Application;
-use LaraGram\Request\Request;
+use LaraGram\Http\Request;
+use LaraGram\Request\Request as BotRequest;
 use LaraGram\Surge\Contracts\Client;
+use LaraGram\Surge\Contracts\ServesStaticFiles;
 use LaraGram\Surge\Contracts\Worker as WorkerContract;
 use LaraGram\Surge\Events\TaskReceived;
 use LaraGram\Surge\Events\TaskTerminated;
@@ -59,8 +61,16 @@ class Worker implements WorkerContract
     /**
      * Handle an incoming request and send the response to the client.
      */
-    public function handle($request, RequestContext $context): void
+    public function handle(Request|BotRequest $request, RequestContext $context): void
     {
+        if ($request instanceof Request &&
+            $this->client instanceof ServesStaticFiles &&
+            $this->client->canServeRequestAsStaticFile($request, $context)) {
+            $this->client->serveStaticFile($request, $context);
+
+            return;
+        }
+
         // We will clone the application instance so that we have a clean copy to switch
         // back to once the request has been handled. This allows us to easily delete
         // certain instances that got resolved / mutated during a previous request.
@@ -99,8 +109,7 @@ class Worker implements WorkerContract
         } finally {
             $sandbox->flush();
 
-            $this->app->make('template.engine.resolver')->forget('blade');
-            $this->app->make('template.engine.resolver')->forget('php');
+            $this->forgetCompilerEngines();
 
             // After the request handling process has completed we will unset some variables
             // plus reset the current application state back to its original state before
@@ -112,14 +121,12 @@ class Worker implements WorkerContract
     }
 
     /**
-     * Handle a Telegram webhook update dispatched as a background task.
+     * Handle a Telegram webhook update that was already acknowledged to Telegram.
      *
-     * The webhook connection has already been answered with a 200 by the request
-     * worker, so here we simply run the update through the application. Listeners
-     * deliver their replies via the Telegram API, so the response produced by the
-     * kernel is not sent anywhere - it is discarded once the request terminates.
+     * The update runs through the bot kernel exactly like a request, but there is no
+     * client response to send: listeners reply through the Telegram Bot API.
      *
-     * @param  array  $argv  The argv-like payload for Request::createFromBase().
+     * @param  array  $argv  The argv-like payload for LaraGram\Request\Request::createFromBase().
      */
     public function handleBotUpdate(array $argv): void
     {
@@ -127,21 +134,30 @@ class Worker implements WorkerContract
 
         $gateway = new ApplicationGateway($this->app, $sandbox);
 
-        $request = Request::createFromBase($argv);
+        $request = BotRequest::createFromBase($argv);
 
         try {
+            ob_start();
+
             $response = $gateway->handle($request);
+
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
 
             $this->invokeRequestHandledCallbacks($request, $response, $sandbox);
 
             $gateway->terminate($request, $response);
         } catch (Throwable $e) {
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
+
             $this->dispatchEvent($sandbox, new WorkerErrorOccurred($e, $sandbox));
         } finally {
             $sandbox->flush();
 
-            $this->app->make('template.engine.resolver')->forget('blade');
-            $this->app->make('template.engine.resolver')->forget('php');
+            $this->forgetCompilerEngines();
 
             unset($gateway, $sandbox, $request, $response);
 
@@ -215,7 +231,7 @@ class Worker implements WorkerContract
     protected function handleWorkerError(
         Throwable $e,
         Application $app,
-        $request,
+        Request|BotRequest $request,
         RequestContext $context,
         bool $hasResponded
     ): void {
@@ -227,10 +243,27 @@ class Worker implements WorkerContract
     }
 
     /**
+     * Forget the compiler engines of the Blade views and the Temple8 templates,
+     * which keep per-request compilation state.
+     */
+    protected function forgetCompilerEngines(): void
+    {
+        if ($this->app->bound('view.engine.resolver')) {
+            $this->app->make('view.engine.resolver')->forget('blade');
+            $this->app->make('view.engine.resolver')->forget('php');
+        }
+
+        if ($this->app->bound('template.engine.resolver')) {
+            $this->app->make('template.engine.resolver')->forget('temple8');
+            $this->app->make('template.engine.resolver')->forget('php');
+        }
+    }
+
+    /**
      * Invoke the request handled callbacks.
      *
-     * @param  \LaraGram\Request\Request  $request
-     * @param  \LaraGram\Request\Response  $response
+     * @param  \LaraGram\Http\Request|\LaraGram\Request\Request  $request
+     * @param  \LaraGram\Http\BaseResponse|\LaraGram\Request\Response  $response
      * @param  \LaraGram\Foundation\Application  $sandbox
      */
     protected function invokeRequestHandledCallbacks($request, $response, $sandbox): void

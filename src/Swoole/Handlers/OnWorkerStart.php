@@ -2,6 +2,7 @@
 
 namespace LaraGram\Surge\Swoole\Handlers;
 
+use LaraGram\Http\Request as HttpRequest;
 use LaraGram\Support\Str;
 use LaraGram\Surge\ApplicationFactory;
 use LaraGram\Surge\Stream;
@@ -31,7 +32,9 @@ class OnWorkerStart
      */
     public function __invoke($server, int $workerId)
     {
-        $this->clearOpcodeCache();
+        if ($this->shouldClearOpcodeCache()) {
+            $this->clearOpcodeCache();
+        }
 
         $this->workerState->server = $server;
         $this->workerState->workerId = $workerId;
@@ -99,20 +102,37 @@ class OnWorkerStart
                 return;
             }
 
-            $pattern = $request->message->text
-                ?? $request->message->caption
-                ?? $request->callback_query->data
-                ?? $request->inline_query->query
-                ?? '*';
+            if ($request instanceof HttpRequest) {
+                Stream::request(
+                    $request->getMethod(),
+                    $request->fullUrl(),
+                    $response->getStatusCode(),
+                    (microtime(true) - $this->workerState->lastRequestTime) * 1000,
+                );
 
-            $pattern = Str::limit($pattern, 8, '...');
+                return;
+            }
+
+            // Telegram updates have no URL or status; show the update verb and its value instead.
+            $verb = (string) $request->method();
 
             Stream::request(
-                $request->method(),
-                $pattern,
+                $verb !== '' ? $verb : 'UPDATE',
+                '/'.Str::limit((string) ($request->listenValue($verb) ?? ''), 32, '...'),
+                200,
                 (microtime(true) - $this->workerState->lastRequestTime) * 1000,
             );
         });
+    }
+
+    /**
+     * Determine if the opcode cache should be cleared.
+     *
+     * @return bool
+     */
+    protected function shouldClearOpcodeCache()
+    {
+        return $this->serverState['surgeConfig']['swoole']['clear_opcache'] ?? true;
     }
 
     /**

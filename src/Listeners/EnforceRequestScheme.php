@@ -2,6 +2,8 @@
 
 namespace LaraGram\Surge\Listeners;
 
+use LaraGram\Http\Request as HttpRequest;
+
 class EnforceRequestScheme
 {
     /**
@@ -17,6 +19,8 @@ class EnforceRequestScheme
 
         $event->sandbox->make('url')->forceScheme('https');
 
-        $event->request->server->set('HTTPS', 'on');
+        if ($event->request instanceof HttpRequest) {
+            $event->request->server->set('HTTPS', 'on');
+        }
     }
 }

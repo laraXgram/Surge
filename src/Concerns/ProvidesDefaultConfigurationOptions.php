@@ -17,7 +17,8 @@ trait ProvidesDefaultConfigurationOptions
             \LaraGram\Surge\Listeners\EnforceRequestScheme::class,
             \LaraGram\Surge\Listeners\EnsureRequestServerPortMatchesScheme::class,
             \LaraGram\Surge\Listeners\GiveNewRequestInstanceToApplication::class,
-            \LaraGram\Surge\Listeners\GiveNewRequestInstanceToPaginator::class,        ];
+            \LaraGram\Surge\Listeners\GiveNewRequestInstanceToPaginator::class,
+        ];
     }
 
     /**

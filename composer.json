@@ -1,7 +1,14 @@
 {
     "name": "laraxgram/surge",
     "description": "Supercharge your LaraGram application's performance.",
-    "keywords": ["laragram", "surge", "openswoole", "swoole", "octane", "laravel"],
+    "keywords": [
+        "laragram",
+        "surge",
+        "openswoole",
+        "swoole",
+        "octane",
+        "laravel"
+    ],
     "license": "MIT",
     "support": {
         "issues": "https://github.com/laraxgram/surge/issues",
@@ -14,26 +21,36 @@
         }
     ],
     "require": {
-        "php": "^8.2.0",
+        "php": "^8.3",
         "laraxgram/core": "^3|^4",
         "laraxgram/tempora": "^1"
     },
     "bin": [
+        "bin/roadrunner-worker",
         "bin/swoole-server"
     ],
+    "conflict": {
+        "spiral/roadrunner": "<2023.1.0",
+        "spiral/roadrunner-cli": "<2.6.0",
+        "spiral/roadrunner-http": "<3.3.0"
+    },
     "autoload": {
         "psr-4": {
             "LaraGram\\Surge\\": "src"
-        }
-    },
-    "scripts": {
-        "post-autoload-dump": [
-            "@php vendor/bin/testbench package:discover --ansi"
+        },
+        "files": [
+            "src/RoadRunner/Factory/functions/normalize_server.php",
+            "src/RoadRunner/Factory/functions/marshal_protocol_version_from_sapi.php",
+            "src/RoadRunner/Factory/functions/marshal_method_from_sapi.php",
+            "src/RoadRunner/Factory/functions/parse_cookie_header.php",
+            "src/RoadRunner/Factory/functions/marshal_headers_from_sapi.php",
+            "src/RoadRunner/Factory/functions/create_uploaded_file.php",
+            "src/RoadRunner/Factory/functions/normalize_uploaded_files.php"
         ]
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.x-dev"
+            "dev-master": "2.x-dev"
         },
         "laragram": {
             "providers": [

@@ -3,66 +3,103 @@
 namespace LaraGram\Surge\Swoole\Actions;
 
 use LaraGram\Http\BaseRequest;
-use LaraGram\Http\Request as HttpRequest;
+use LaraGram\Http\Request;
 
 class ConvertSwooleRequestToLaraGramHttpRequest
 {
     /**
      * Convert the given Swoole request into a LaraGram HTTP request.
      *
-     * Web (browser) traffic is served through the HTTP kernel, so we rebuild a
-     * full $_SERVER-shaped request from the Swoole request - query, body, cookies,
-     * files, headers - rather than the update-oriented bot request.
-     *
-     * @param \Swoole\Http\Request $swooleRequest
+     * @param  \Swoole\Http\Request  $swooleRequest
      */
-    public function __invoke($swooleRequest): HttpRequest
+    public function __invoke($swooleRequest, string $phpSapi): Request
     {
-        $base = new BaseRequest(
+        $serverVariables = $this->prepareServerVariables(
+            $swooleRequest->server ?? [],
+            $swooleRequest->header ?? [],
+            $phpSapi
+        );
+
+        $request = new BaseRequest(
             $swooleRequest->get ?? [],
             $swooleRequest->post ?? [],
             [],
             $swooleRequest->cookie ?? [],
-            $this->normaliseFiles($swooleRequest->files ?? []),
-            $this->marshalServerVariables($swooleRequest),
-            $swooleRequest->getContent(),
+            $swooleRequest->files ?? [],
+            $serverVariables,
+            $swooleRequest->rawContent(),
         );
 
-        return HttpRequest::createFromBase($base);
+        if (str_starts_with((string) $request->headers->get('CONTENT_TYPE'), 'application/x-www-form-urlencoded') &&
+            in_array(strtoupper($request->server->get('REQUEST_METHOD', 'GET')), ['PUT', 'PATCH', 'DELETE'])) {
+            parse_str($request->getContent(), $data);
+
+            $request->request->replace($data);
+        }
+
+        return Request::createFromBase($request);
     }
 
     /**
-     * Build a $_SERVER-shaped array from the Swoole request.
-     *
-     * Swoole exposes server vars in lowercase and keeps headers in a separate
-     * bag, so we uppercase the former and re-prefix the latter with "HTTP_" to
-     * match what the HTTP request expects.
-     *
-     * @param \Swoole\Http\Request $swooleRequest
-     * @return array
+     * Parse the "server" variables and headers into a single array of $_SERVER variables.
      */
-    protected function marshalServerVariables($swooleRequest): array
+    public function prepareServerVariables(array $server, array $headers, string $phpSapi): array
     {
-        $server = [];
+        $results = [];
 
-        foreach ($swooleRequest->server ?? [] as $key => $value) {
-            $server[strtoupper($key)] = $value;
+        foreach ($server as $key => $value) {
+            $results[strtoupper($key)] = $value;
         }
 
-        foreach ($swooleRequest->header ?? [] as $key => $value) {
-            $server['HTTP_' . strtoupper(str_replace('-', '_', $key))] = $value;
+        $results = array_merge(
+            $results,
+            $this->formatHttpHeadersIntoServerVariables($headers)
+        );
+
+        if (isset($results['REQUEST_URI'], $results['QUERY_STRING']) &&
+            strlen($results['QUERY_STRING']) > 0 &&
+            strpos($results['REQUEST_URI'], '?') === false) {
+            $results['REQUEST_URI'] .= '?'.$results['QUERY_STRING'];
         }
 
-        return $server;
+        return $phpSapi === 'cli-server'
+                ? $this->correctHeadersSetIncorrectlyByPhpDevServer($results)
+                : $results;
     }
 
     /**
-     * Normalise the Swoole uploaded files array to the $_FILES structure.
-     *
-     * @return array
+     * Format the given HTTP headers into properly formatted $_SERVER variables.
      */
-    protected function normaliseFiles(array $files): array
+    protected function formatHttpHeadersIntoServerVariables(array $headers): array
     {
-        return $files;
+        $results = [];
+
+        foreach ($headers as $key => $value) {
+            $key = strtoupper(str_replace('-', '_', $key));
+
+            if (! in_array($key, ['HTTPS', 'REMOTE_ADDR', 'SERVER_PORT'])) {
+                $key = 'HTTP_'.$key;
+            }
+
+            $results[$key] = $value;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Correct headers set incorrectly by built-in PHP development server.
+     */
+    protected function correctHeadersSetIncorrectlyByPhpDevServer(array $headers): array
+    {
+        if (array_key_exists('HTTP_CONTENT_LENGTH', $headers)) {
+            $headers['CONTENT_LENGTH'] = $headers['HTTP_CONTENT_LENGTH'];
+        }
+
+        if (array_key_exists('HTTP_CONTENT_TYPE', $headers)) {
+            $headers['CONTENT_TYPE'] = $headers['HTTP_CONTENT_TYPE'];
+        }
+
+        return $headers;
     }
 }

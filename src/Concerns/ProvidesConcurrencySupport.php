@@ -23,6 +23,10 @@ trait ProvidesConcurrencySupport
      */
     public function concurrently(array $tasks, int $waitMilliseconds = 3000)
     {
+        if (empty($tasks)) {
+            return [];
+        }
+
         return $this->tasks()->resolve($tasks, $waitMilliseconds);
     }
 
@@ -38,7 +42,7 @@ trait ProvidesConcurrencySupport
             app()->bound(Server::class) => new SwooleTaskDispatcher,
             class_exists(Server::class) => (fn (array $serverState) => new SwooleHttpTaskDispatcher(
                 $serverState['state']['host'] ?? '127.0.0.1',
-                $serverState['state']['port'] ?? '8000',
+                $serverState['state']['port'] ?? '9000',
                 new SequentialTaskDispatcher
             ))(app(ServerStateFile::class)->read()),
             default => new SequentialTaskDispatcher,

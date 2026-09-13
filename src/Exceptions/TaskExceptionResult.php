@@ -39,10 +39,16 @@ class TaskExceptionResult
     /**
      * Gets the original throwable.
      *
-     * @return \LaraGram\Surge\Exceptions\TaskException
+     * @return \LaraGram\Surge\Exceptions\TaskException|\LaraGram\Surge\Exceptions\DdException
      */
     public function getOriginal()
     {
+        if ($this->class == DdException::class) {
+            return new DdException(
+                json_decode($this->message, true)
+            );
+        }
+
         return new TaskException(
             $this->class,
             $this->message,

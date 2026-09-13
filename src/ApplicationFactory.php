@@ -2,7 +2,7 @@
 
 namespace LaraGram\Surge;
 
-use LaraGram\Contracts\Bot\Kernel as HttpKernelContract;
+use LaraGram\Contracts\Bot\Kernel as BotKernelContract;
 use LaraGram\Foundation\Application;
 use LaraGram\Foundation\Bootstrap\RegisterProviders;
 use LaraGram\Foundation\Bootstrap\SetRequestForConsole;
@@ -51,12 +51,12 @@ class ApplicationFactory
     }
 
     /**
-     * Get the application's HTTP kernel bootstrappers.
+     * Get the application's bot kernel bootstrappers (the HTTP kernel uses the same ones).
      */
     protected function getBootstrappers(Application $app): array
     {
         $method = (new ReflectionObject(
-            $kernel = $app->make(HttpKernelContract::class)
+            $kernel = $app->make(BotKernelContract::class)
         ))->getMethod('bootstrappers');
 
         $method->setAccessible(true);

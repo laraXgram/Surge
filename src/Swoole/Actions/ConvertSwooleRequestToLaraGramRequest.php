@@ -7,7 +7,7 @@ use LaraGram\Request\Request;
 class ConvertSwooleRequestToLaraGramRequest
 {
     /**
-     * Convert the given Swoole request into an LaraGram request.
+     * Convert the given Swoole request carrying a Telegram webhook update into a LaraGram bot request.
      *
      * @param  \Swoole\Http\Request  $swooleRequest
      */
@@ -19,41 +19,22 @@ class ConvertSwooleRequestToLaraGramRequest
     /**
      * Build the argv-like payload consumed by Request::createFromBase().
      *
-     * Index 1 is the raw JSON body and index 2 is a JSON-encoded $_SERVER array.
-     * Swoole exposes the server vars in lowercase and keeps headers separately,
-     * so we normalise both into a PHP $_SERVER-shaped payload. The result is a
-     * plain array of scalars, which makes it safe to pass to a Swoole task.
+     * Index 1 is the raw update JSON and index 2 the JSON-encoded $_SERVER variables
+     * (which carry the webhook secret token header). The payload only holds scalars,
+     * so it can be passed to a Swoole task worker.
      *
      * @param  \Swoole\Http\Request  $swooleRequest
-     * @return array
      */
     public function toArgv($swooleRequest, string $phpSapi): array
     {
         return [
             $phpSapi,
-            $swooleRequest->getContent(),
-            json_encode($this->marshalServerVariables($swooleRequest)),
+            (string) $swooleRequest->rawContent(),
+            json_encode((new ConvertSwooleRequestToLaraGramHttpRequest)->prepareServerVariables(
+                $swooleRequest->server ?? [],
+                $swooleRequest->header ?? [],
+                $phpSapi
+            )),
         ];
-    }
-
-    /**
-     * Build a $_SERVER-shaped array from the Swoole request.
-     *
-     * @param  \Swoole\Http\Request  $swooleRequest
-     * @return array
-     */
-    protected function marshalServerVariables($swooleRequest): array
-    {
-        $server = [];
-
-        foreach ($swooleRequest->server ?? [] as $key => $value) {
-            $server[strtoupper($key)] = $value;
-        }
-
-        foreach ($swooleRequest->header ?? [] as $key => $value) {
-            $server['HTTP_'.strtoupper(str_replace('-', '_', $key))] = $value;
-        }
-
-        return $server;
     }
 }

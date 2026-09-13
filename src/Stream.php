@@ -12,13 +12,14 @@ class Stream
      *
      * @return void
      */
-    public static function request(string $method, string $pattern, float $duration)
+    public static function request(string $method, string $url, int $statusCode, float $duration)
     {
         fwrite(STDOUT, json_encode([
             'type' => 'request',
             'method' => $method,
-            'pattern' => $pattern,
+            'url' => $url,
             'memory' => memory_get_usage(),
+            'statusCode' => $statusCode,
             'duration' => $duration,
         ])."\n");
     }

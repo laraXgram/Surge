@@ -5,6 +5,8 @@ namespace LaraGram\Surge\RoadRunner;
 use Generator;
 use LaraGram\Foundation\Application;
 use LaraGram\Http\Request;
+use LaraGram\Request\Request as BotRequest;
+use LaraGram\Request\Response as BotResponse;
 use LaraGram\Surge\Contracts\Client;
 use LaraGram\Surge\Contracts\StoppableClient;
 use LaraGram\Surge\MarshalsPsr7RequestsAndResponses;
@@ -26,12 +28,12 @@ class RoadRunnerClient implements Client, StoppableClient
     }
 
     /**
-     * Marshal the given request context into an Illuminate request.
+     * Marshal the given request context into a LaraGram HTTP or bot request.
      */
     public function marshalRequest(RequestContext $context): array
     {
         return [
-            $this->toHttpFoundationRequest($context->psr7Request),
+            $this->toLaraGramRequest($context->psr7Request),
             $context,
         ];
     }
@@ -41,6 +43,16 @@ class RoadRunnerClient implements Client, StoppableClient
      */
     public function respond(RequestContext $context, SurgeResponse $surgeResponse): void
     {
+        if ($surgeResponse->response instanceof BotResponse) {
+            $surgeResponse->response->setContent(
+                $surgeResponse->outputBuffer.$surgeResponse->response->getContent()
+            );
+
+            $this->client->respond($this->toPsr7Response($surgeResponse->response));
+
+            return;
+        }
+
         if ($surgeResponse->outputBuffer &&
             ! $surgeResponse->response instanceof StreamedResponse &&
             ! $surgeResponse->response instanceof BinaryFileResponse) {
@@ -88,7 +100,7 @@ class RoadRunnerClient implements Client, StoppableClient
     /**
      * Send an error message to the server.
      */
-    public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
+    public function error(Throwable $e, Application $app, Request|BotRequest $request, RequestContext $context): void
     {
         $this->client->getWorker()->error(Surge::formatExceptionForClient(
             $e,

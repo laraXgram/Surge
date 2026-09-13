@@ -145,7 +145,7 @@ trait InteractsWithServers
      */
     protected function getPort()
     {
-        return $this->option('port') ?? config('surge.port') ?? $_ENV['SURGE_PORT'] ?? '8000';
+        return $this->option('port') ?? config('surge.port') ?? $_ENV['SURGE_PORT'] ?? '9000';
     }
 
     /**
