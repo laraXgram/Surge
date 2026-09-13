@@ -5,6 +5,8 @@ namespace LaraGram\Surge\Swoole\Handlers;
 use LaraGram\Surge\ApplicationFactory;
 use LaraGram\Surge\Stream;
 use LaraGram\Surge\Swoole\SwooleExtension;
+use LaraGram\Surge\Swoole\WorkerState;
+use Swoole\Coroutine;
 use Swoole\Http\Server;
 use Swoole\Process;
 use Throwable;
@@ -15,9 +17,11 @@ class OnProcessStart
         protected SwooleExtension $extension,
         protected string $basePath,
         protected array $serverState,
+        protected WorkerState $workerState,
         protected string $handler,
         protected ?string $name = null,
         protected bool $shouldSetProcessName = true,
+        protected int $minimumLifetime = 5,
     ) {
     }
 
@@ -30,6 +34,11 @@ class OnProcessStart
      */
     public function __invoke(Server $server, Process $process): void
     {
+        $startedAt = microtime(true);
+
+        $this->workerState->server = $server;
+        $this->workerState->workerPid = posix_getpid();
+
         try {
             if ($this->shouldSetProcessName) {
                 $this->extension->setProcessName(
@@ -39,8 +48,10 @@ class OnProcessStart
             }
 
             $app = (new ApplicationFactory($this->basePath))->createApplication([
+                'surge.cacheTable' => $this->workerState->cacheTable,
                 Server::class => $server,
                 Process::class => $process,
+                WorkerState::class => $this->workerState,
             ]);
 
             $handler = $app->make($this->handler);
@@ -48,6 +59,24 @@ class OnProcessStart
             $handler($app, $process, $server);
         } catch (Throwable $e) {
             Stream::shutdown($e);
+        } finally {
+            $this->delayRestart($startedAt);
         }
+    }
+
+    /**
+     * Keep a handler that exits right away from being restarted by Swoole in a tight loop.
+     */
+    protected function delayRestart(float $startedAt): void
+    {
+        $remaining = $this->minimumLifetime - (microtime(true) - $startedAt);
+
+        if ($remaining <= 0) {
+            return;
+        }
+
+        Coroutine::getCid() > 0
+            ? Coroutine::sleep($remaining)
+            : usleep((int) ($remaining * 1_000_000));
     }
 }

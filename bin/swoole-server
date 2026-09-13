@@ -211,13 +211,13 @@ foreach ($serverState['surgeConfig']['processes'] ?? [] as $process) {
         : [$process, null, true];
 
     $server->addProcess(new Process(
-        function (Process $proc) use ($server, $serverState, $bootstrap, $handlerClass, $processName) {
+        function (Process $proc) use ($server, $serverState, $bootstrap, $workerState, $handlerClass, $processName) {
             // Load the autoloader inside the forked process and resolve the base
             // path; the application boots once here for the life of the process.
             $basePath = $bootstrap($serverState);
 
             (new OnProcessStart(
-                new SwooleExtension, $basePath, $serverState, $handlerClass, $processName
+                new SwooleExtension, $basePath, $serverState, $workerState, $handlerClass, $processName
             ))($server, $proc);
         },
         false,

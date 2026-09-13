@@ -282,9 +282,17 @@ class SwooleClient implements Client, ServesStaticFiles
         }
 
         if ($surgeResponse->response instanceof StreamedResponse) {
-            ob_start(function ($data) use ($swooleResponse) {
-                if (strlen($data) > 0) {
-                    $swooleResponse->write($data);
+            // connection_aborted() is always 0 under Swoole, so long-lived streams
+            // (e.g. SSE) can ask the sandbox whether a write to the client failed...
+            $disconnected = false;
+
+            app()->instance('surge.disconnected', function () use (&$disconnected): bool {
+                return $disconnected;
+            });
+
+            ob_start(function ($data) use ($swooleResponse, &$disconnected) {
+                if (strlen($data) > 0 && $swooleResponse->write($data) === false) {
+                    $disconnected = true;
                 }
 
                 return '';
