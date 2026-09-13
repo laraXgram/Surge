@@ -13,5 +13,8 @@ class GiveNewRequestInstanceToApplication
     {
         $event->app->instance('request', $event->request);
         $event->sandbox->instance('request', $event->request);
+
+        $event->app->instance('http.request', $event->request);
+        $event->sandbox->instance('http.request', $event->request);
     }
 }

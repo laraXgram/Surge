@@ -2,6 +2,8 @@
 
 namespace LaraGram\Surge\Commands;
 
+use LaraGram\Surge\FrankenPhp\ServerProcessInspector as FrankenPhpServerProcessInspector;
+use LaraGram\Surge\RoadRunner\ServerProcessInspector as RoadRunnerServerProcessInspector;
 use LaraGram\Surge\Swoole\ServerProcessInspector as SwooleServerProcessInspector;
 use LaraGram\Console\Attribute\AsCommand;
 
@@ -33,6 +35,8 @@ class ReloadCommand extends Command
 
         return match ($server) {
             'swoole' => $this->reloadSwooleServer(),
+            'roadrunner' => $this->reloadRoadRunnerServer(),
+            'frankenphp' => $this->reloadFrankenPhpServer(),
             default => $this->invalidServer($server),
         };
     }
@@ -45,6 +49,50 @@ class ReloadCommand extends Command
     protected function reloadSwooleServer()
     {
         $inspector = app(SwooleServerProcessInspector::class);
+
+        if (! $inspector->serverIsRunning()) {
+            $this->components->error('Surge server is not running.');
+
+            return 1;
+        }
+
+        $this->components->info('Reloading workers...');
+
+        $inspector->reloadServer();
+
+        return 0;
+    }
+
+    /**
+     * Reload the RoadRunner server for Surge.
+     *
+     * @return int
+     */
+    protected function reloadRoadRunnerServer()
+    {
+        $inspector = app(RoadRunnerServerProcessInspector::class);
+
+        if (! $inspector->serverIsRunning()) {
+            $this->components->error('Surge server is not running.');
+
+            return 1;
+        }
+
+        $this->components->info('Reloading workers...');
+
+        $inspector->reloadServer();
+
+        return 0;
+    }
+
+    /**
+     * Reload the FrankenPHP server for Surge.
+     *
+     * @return int
+     */
+    protected function reloadFrankenPhpServer()
+    {
+        $inspector = app(FrankenPhpServerProcessInspector::class);
 
         if (! $inspector->serverIsRunning()) {
             $this->components->error('Surge server is not running.');

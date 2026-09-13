@@ -3,6 +3,10 @@
 namespace LaraGram\Surge\Events;
 
 use LaraGram\Foundation\Application;
+use LaraGram\Request\Request as BotRequest;
+use LaraGram\Request\Response as BotResponse;
+use LaraGram\Http\Request as HttpRequest;
+use LaraGram\Http\Response as HttpResponse;
 
 class RequestHandled
 {
@@ -12,8 +16,8 @@ class RequestHandled
      */
     public function __construct(
         public Application $sandbox,
-        public $request,
-        public $response
+        public BotRequest|HttpRequest $request,
+        public BotResponse|HttpResponse $response
     ) {
     }
 }

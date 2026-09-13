@@ -2,7 +2,8 @@
 
 namespace LaraGram\Surge\Contracts;
 
-use LaraGram\Request\Request;
+use LaraGram\Request\Request as BotRequest;
+use LaraGram\Http\Request as HttpRequest;
 use LaraGram\Surge\RequestContext;
 
 interface Worker
@@ -15,7 +16,7 @@ interface Worker
     /**
      * Handle an incoming request and send the response to the client.
      */
-    public function handle(Request $request, RequestContext $context): void;
+    public function handle(BotRequest|HttpRequest $request, RequestContext $context): void;
 
     /**
      * Handle an incoming task.

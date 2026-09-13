@@ -3,12 +3,14 @@
 namespace LaraGram\Surge\Commands\Concerns;
 
 use LaraGram\Console\OutputStyle;
-use LaraGram\Surge\Commands\Writer\Writer;
 use LaraGram\Support\Str;
+use LaraGram\Surge\Exceptions\DdException;
 use LaraGram\Surge\Exceptions\ServerShutdownException;
 use LaraGram\Surge\Exceptions\WorkerException;
 use LaraGram\Surge\Surge;
 use LaraGram\Surge\WorkerExceptionInspector;
+use LaraGram\Surge\Commands\Writer\Writer;
+use LaraGram\Http\VarDumper\VarDumper;
 
 trait InteractsWithIO
 {
@@ -35,7 +37,6 @@ trait InteractsWithIO
         '[INFO] sdnotify: not notified',
         'exiting; byeee!!',
         'storage cleaning happened too recently',
-        'write error',
         'unable to determine directory for user configuration; falling back to current directory',
         '$HOME environment variable is empty',
         'unable to get instance ID',
@@ -123,31 +124,52 @@ trait InteractsWithIO
     {
         $terminalWidth = $this->getTerminalWidth();
 
-        $pattern = $request['pattern'];
+        $url = parse_url($request['url'], PHP_URL_PATH) ?: '/';
         $duration = number_format(round($request['duration'], 2), 2, '.', '');
 
         $memory = isset($request['memory'])
             ? (number_format($request['memory'] / 1024 / 1024, 2, '.', '').' mb ')
             : '';
 
-        ['method' => $method] = $request;
+        ['method' => $method, 'statusCode' => $statusCode] = $request;
 
-        $dots = str_repeat('.', max($terminalWidth - strlen($method.$pattern.$duration.$memory) - 16, 0));
+        $dots = str_repeat('.', max($terminalWidth - strlen($method.$url.$duration.$memory) - 16, 0));
 
         if (empty($dots) && ! $this->output->isVerbose()) {
-            $pattern = substr($pattern, 0, $terminalWidth - strlen($method.$duration.$memory) - 15 - 3).'...';
+            $url = substr($url, 0, $terminalWidth - strlen($method.$duration.$memory) - 15 - 3).'...';
         } else {
             $dots .= ' ';
         }
 
         $this->output->writeln(sprintf(
-            '  <fg=cyan;options=bold>%s</> <options=bold>%s</><fg=#6C7280> %s%s%s ms</>',
+            '  <fg=%s;options=bold>%s </>   <fg=cyan;options=bold>%s</> <options=bold>%s</><fg=#6C7280> %s%s%s ms</>',
+            match (true) {
+                $statusCode >= 500 => 'red',
+                $statusCode >= 400 => 'yellow',
+                $statusCode >= 300 => 'cyan',
+                $statusCode >= 100 => 'green',
+                default => 'white',
+            },
+            $statusCode,
             $method,
-            $pattern,
+            $url,
             $dots,
             $memory,
             $duration,
         ), $this->parseVerbosity($verbosity));
+    }
+
+    /**
+     * Write information about a dd to the console.
+     *
+     * @param  array  $throwable
+     * @param  int|string|null  $verbosity
+     * @return void
+     */
+    public function ddInfo($throwable, $verbosity = null)
+    {
+        collect(json_decode($throwable['message'], true))
+            ->each(fn ($var) => VarDumper::dump($var));
     }
 
     /**
@@ -159,6 +181,10 @@ trait InteractsWithIO
      */
     public function throwableInfo($throwable, $verbosity = null)
     {
+        if ($throwable['class'] == DdException::class) {
+            return $this->ddInfo($throwable, $verbosity);
+        }
+
         (new Writer(null, $this->output))->write(
             new WorkerExceptionInspector(
                 new WorkerException(

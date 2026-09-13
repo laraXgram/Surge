@@ -19,11 +19,16 @@ class StartCommand extends Command implements SignalableCommandInterface
                     {--server= : The server that should be used to serve the application}
                     {--host= : The IP address the server should bind to}
                     {--port= : The port the server should be available on [default: "9000"]}
+                    {--admin-port= : The port the admin server should be available on [FrankenPHP only]}
                     {--rpc-host= : The RPC IP address the server should bind to}
                     {--rpc-port= : The RPC port the server should be available on}
                     {--workers=auto : The number of workers that should be available to handle requests}
                     {--task-workers=auto : The number of task workers that should be available to handle tasks}
                     {--max-requests=500 : The number of requests to process before reloading the server}
+                    {--rr-config= : The path to the RoadRunner .rr.yaml file}
+                    {--caddyfile= : The path to the FrankenPHP Caddyfile file}
+                    {--https : Enable HTTPS, HTTP/2, and HTTP/3, and automatically generate and renew certificates [FrankenPHP only]}
+                    {--http-redirect : Enable HTTP to HTTPS redirection (only enabled if --https is passed) [FrankenPHP only]}
                     {--watch : Automatically reload the server when the application is modified}
                     {--poll : Use file system polling while watching in order to watch files over a network}
                     {--log-level= : Log messages at or above the specified log level}';
@@ -46,6 +51,8 @@ class StartCommand extends Command implements SignalableCommandInterface
 
         return match ($server) {
             'swoole' => $this->startSwooleServer(),
+            'roadrunner' => $this->startRoadRunnerServer(),
+            'frankenphp' => $this->startFrankenPhpServer(),
             default => $this->invalidServer($server),
         };
     }
@@ -65,6 +72,49 @@ class StartCommand extends Command implements SignalableCommandInterface
             '--max-requests' => $this->option('max-requests') ?: config('surge.max_requests', 500),
             '--watch' => $this->option('watch'),
             '--poll' => $this->option('poll'),
+        ]);
+    }
+
+    /**
+     * Start the RoadRunner server for Surge.
+     *
+     * @return int
+     */
+    protected function startRoadRunnerServer()
+    {
+        return $this->call('surge:roadrunner', [
+            '--host' => $this->getHost(),
+            '--port' => $this->getPort(),
+            '--rpc-host' => $this->option('rpc-host'),
+            '--rpc-port' => $this->option('rpc-port'),
+            '--workers' => $this->option('workers') ?: config('surge.workers', 'auto'),
+            '--max-requests' => $this->option('max-requests') ?: config('surge.max_requests', 500),
+            '--rr-config' => $this->option('rr-config'),
+            '--watch' => $this->option('watch'),
+            '--poll' => $this->option('poll'),
+            '--log-level' => $this->option('log-level'),
+        ]);
+    }
+
+    /**
+     * Start the FrankenPHP server for Surge.
+     *
+     * @return int
+     */
+    protected function startFrankenPhpServer()
+    {
+        return $this->call('surge:frankenphp', [
+            '--host' => $this->getHost(),
+            '--port' => $this->getPort(),
+            '--admin-port' => $this->option('admin-port'),
+            '--workers' => $this->option('workers') ?: config('surge.workers', 'auto'),
+            '--max-requests' => $this->option('max-requests') ?: config('surge.max_requests', 500),
+            '--caddyfile' => $this->option('caddyfile'),
+            '--https' => $this->option('https'),
+            '--http-redirect' => $this->option('http-redirect'),
+            '--watch' => $this->option('watch'),
+            '--poll' => $this->option('poll'),
+            '--log-level' => $this->option('log-level'),
         ]);
     }
 

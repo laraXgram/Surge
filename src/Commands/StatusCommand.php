@@ -2,6 +2,8 @@
 
 namespace LaraGram\Surge\Commands;
 
+use LaraGram\Surge\FrankenPhp\ServerProcessInspector as FrankenPhpServerProcessInspector;
+use LaraGram\Surge\RoadRunner\ServerProcessInspector as RoadRunnerServerProcessInspector;
 use LaraGram\Surge\Swoole\ServerProcessInspector as SwooleServerProcessInspector;
 use LaraGram\Console\Attribute\AsCommand;
 
@@ -33,6 +35,8 @@ class StatusCommand extends Command
 
         $isRunning = match ($server) {
             'swoole' => $this->isSwooleServerRunning(),
+            'roadrunner' => $this->isRoadRunnerServerRunning(),
+            'frankenphp' => $this->isFrankenPhpServerRunning(),
             default => $this->invalidServer($server),
         };
 
@@ -51,6 +55,28 @@ class StatusCommand extends Command
     protected function isSwooleServerRunning()
     {
         return app(SwooleServerProcessInspector::class)
+            ->serverIsRunning();
+    }
+
+    /**
+     * Check if the RoadRunner server is running.
+     *
+     * @return bool
+     */
+    protected function isRoadRunnerServerRunning()
+    {
+        return app(RoadRunnerServerProcessInspector::class)
+            ->serverIsRunning();
+    }
+
+    /**
+     * Check if the FrankenPHP server is running.
+     *
+     * @return bool
+     */
+    protected function isFrankenPhpServerRunning()
+    {
+        return app(FrankenPhpServerProcessInspector::class)
             ->serverIsRunning();
     }
 

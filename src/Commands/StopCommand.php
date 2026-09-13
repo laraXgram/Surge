@@ -2,6 +2,10 @@
 
 namespace LaraGram\Surge\Commands;
 
+use LaraGram\Surge\FrankenPhp\ServerProcessInspector as FrankenPhpProcessInspector;
+use LaraGram\Surge\FrankenPhp\ServerStateFile as FrankenPhpStateFile;
+use LaraGram\Surge\RoadRunner\ServerProcessInspector as RoadRunnerServerProcessInspector;
+use LaraGram\Surge\RoadRunner\ServerStateFile as RoadRunnerServerStateFile;
 use LaraGram\Surge\Swoole\ServerProcessInspector as SwooleServerProcessInspector;
 use LaraGram\Surge\Swoole\ServerStateFile as SwooleServerStateFile;
 use LaraGram\Console\Attribute\AsCommand;
@@ -34,6 +38,8 @@ class StopCommand extends Command
 
         return match ($server) {
             'swoole' => $this->stopSwooleServer(),
+            'roadrunner' => $this->stopRoadRunnerServer(),
+            'frankenphp' => $this->stopFrankenPhpServer(),
             default => $this->invalidServer($server),
         };
     }
@@ -64,6 +70,58 @@ class StopCommand extends Command
         }
 
         app(SwooleServerStateFile::class)->delete();
+
+        return 0;
+    }
+
+    /**
+     * Stop the RoadRunner server for Surge.
+     *
+     * @return int
+     */
+    protected function stopRoadRunnerServer()
+    {
+        $inspector = app(RoadRunnerServerProcessInspector::class);
+
+        if (! $inspector->serverIsRunning()) {
+            app(RoadRunnerServerStateFile::class)->delete();
+
+            $this->components->error('RoadRunner server is not running.');
+
+            return 1;
+        }
+
+        $this->components->info('Stopping server...');
+
+        $inspector->stopServer();
+
+        app(RoadRunnerServerStateFile::class)->delete();
+
+        return 0;
+    }
+
+    /**
+     * Stop the FrankenPHP server for Surge.
+     *
+     * @return int
+     */
+    protected function stopFrankenPhpServer()
+    {
+        $inspector = app(FrankenPhpProcessInspector::class);
+
+        if (! $inspector->serverIsRunning()) {
+            app(FrankenPhpStateFile::class)->delete();
+
+            $this->components->error('FrankenPHP server is not running.');
+
+            return 1;
+        }
+
+        $this->components->info('Stopping server...');
+
+        $inspector->stopServer();
+
+        app(FrankenPhpStateFile::class)->delete();
 
         return 0;
     }

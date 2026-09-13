@@ -13,6 +13,9 @@ use function LaraGram\Console\Prompts\select;
 #[AsCommand(name: 'surge:install')]
 class InstallCommand extends Command
 {
+    use Concerns\InstallsFrankenPhpDependencies,
+        Concerns\InstallsRoadRunnerDependencies;
+
     /**
      * The command's signature.
      *
@@ -38,12 +41,14 @@ class InstallCommand extends Command
     {
         $server = $this->option('server') ?: select(
             label: 'Which application server you would like to use?',
-            options: ['swoole'],
+            options: ['frankenphp', 'roadrunner', 'swoole'],
             default: 'swoole'
         );
 
         return (int) ! tap(match ($server) {
             'swoole' => $this->installSwooleServer(),
+            'roadrunner' => $this->installRoadRunnerServer(),
+            'frankenphp' => $this->installFrankenPhpServer(),
             default => $this->invalidServer($server),
         }, function ($installed) use ($server) {
             if ($installed) {
@@ -77,10 +82,40 @@ class InstallCommand extends Command
                     PHP_EOL.'SURGE_SERVER='.$server.PHP_EOL,
                 );
             } else {
-                $this->newLine();
-                $this->components->warn('Please adjust the `SURGE_SERVER` environment variable.');
+                File::put($env, preg_replace(
+                    '/^SURGE_SERVER=.*/m',
+                    'SURGE_SERVER='.$server,
+                    $contents,
+                ));
             }
         }
+    }
+
+    /**
+     * Install the RoadRunner dependencies.
+     *
+     * @return bool
+     */
+    public function installRoadRunnerServer()
+    {
+        if (! $this->ensureRoadRunnerPackageIsInstalled()) {
+            return false;
+        }
+
+        if (File::exists(base_path('.gitignore'))) {
+            collect(['rr', '.rr.yaml'])
+                ->each(function ($file) {
+                    $contents = File::get(base_path('.gitignore'));
+                    if (! Str::contains($contents, $file.PHP_EOL)) {
+                        File::append(
+                            base_path('.gitignore'),
+                            $file.PHP_EOL
+                        );
+                    }
+                });
+        }
+
+        return $this->ensureRoadRunnerBinaryIsInstalled();
     }
 
     /**
@@ -96,6 +131,40 @@ class InstallCommand extends Command
 
         if (! $extension->installIdeHelper()) {
             $this->components->warn('Failed to install the Swoole/OpenSwoole IDE helper.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Install the FrankenPHP server.
+     *
+     * @return bool
+     */
+    public function installFrankenPhpServer()
+    {
+        $gitIgnorePath = base_path('.gitignore');
+
+        if (File::exists($gitIgnorePath)) {
+            $contents = File::get($gitIgnorePath);
+
+            $filesToAppend = collect(['**/caddy', 'frankenphp', 'frankenphp-worker.php'])
+                ->filter(fn ($file) => ! str_contains($contents, $file.PHP_EOL))
+                ->implode(PHP_EOL);
+
+            if ($filesToAppend !== '') {
+                File::append($gitIgnorePath, PHP_EOL.$filesToAppend.PHP_EOL);
+            }
+        }
+
+        $this->ensureFrankenPhpWorkerIsInstalled();
+
+        try {
+            $this->ensureFrankenPhpBinaryIsInstalled();
+        } catch (Throwable $e) {
+            $this->components->error($e->getMessage());
+
+            return false;
         }
 
         return true;
