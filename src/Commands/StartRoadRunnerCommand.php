@@ -56,12 +56,6 @@ class StartRoadRunnerCommand extends Command implements SignalableCommandInterfa
      */
     public function handle(ServerProcessInspector $inspector, ServerStateFile $serverStateFile)
     {
-        if (! $this->isRoadRunnerInstalled()) {
-            $this->components->error('RoadRunner not installed. Please execute the `surge:install` Artisan command.');
-
-            return 1;
-        }
-
         $roadRunnerBinary = $this->ensureRoadRunnerBinaryIsInstalled();
 
         $this->ensurePortIsAvailable();

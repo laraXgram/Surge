@@ -10,10 +10,10 @@ use LaraGram\Surge\RoadRunner\RoadRunnerClient;
 use LaraGram\Surge\Stream;
 use LaraGram\Surge\Worker;
 use LaraGram\Http\Factory\ServerRequestInterface;
-use Spiral\Goridge\Exception\RelayException;
-use Spiral\Goridge\Relay;
-use Spiral\RoadRunner\Http\PSR7Worker;
-use Spiral\RoadRunner\Worker as RoadRunnerWorker;
+use LaraGram\Surge\RoadRunner\Goridge\Exceptions\RelayException;
+use LaraGram\Surge\RoadRunner\Goridge\Relay;
+use LaraGram\Surge\RoadRunner\Http\PSR7Worker;
+use LaraGram\Surge\RoadRunner\Worker\Worker as RoadRunnerWorker;
 
 require __DIR__.'/../fixes/fix-laragram-dd.php';
 

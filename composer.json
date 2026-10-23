@@ -22,18 +22,13 @@
     ],
     "require": {
         "php": "^8.3",
-        "laraxgram/core": "^3|^4",
+        "laraxgram/core": "^4.5",
         "laraxgram/tempora": "^1"
     },
     "bin": [
         "bin/roadrunner-worker",
         "bin/swoole-server"
     ],
-    "conflict": {
-        "spiral/roadrunner": "<2023.1.0",
-        "spiral/roadrunner-cli": "<2.6.0",
-        "spiral/roadrunner-http": "<3.3.0"
-    },
     "autoload": {
         "psr-4": {
             "LaraGram\\Surge\\": "src"
@@ -50,7 +45,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "2.x-dev"
+            "dev-master": "1.x-dev"
         },
         "laragram": {
             "providers": [

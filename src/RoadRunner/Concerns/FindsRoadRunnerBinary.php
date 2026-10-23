@@ -12,8 +12,10 @@ trait FindsRoadRunnerBinary
      */
     protected function findRoadRunnerBinary(): ?string
     {
-        if (file_exists(base_path('rr'))) {
-            return base_path('rr');
+        foreach (['rr', 'rr.exe'] as $binary) {
+            if (file_exists(base_path($binary))) {
+                return base_path($binary);
+            }
         }
 
         if (! is_null($roadRunnerBinary = (new ExecutableFinder)->find('rr', null, [base_path()]))) {

@@ -14,7 +14,7 @@ use LaraGram\Surge\Surge;
 use LaraGram\Surge\SurgeResponse;
 use LaraGram\Surge\RequestContext;
 use ReflectionFunction;
-use Spiral\RoadRunner\Http\PSR7Worker;
+use LaraGram\Surge\RoadRunner\Http\PSR7Worker;
 use LaraGram\Http\BinaryFileResponse;
 use LaraGram\Http\StreamedResponse;
 use Throwable;

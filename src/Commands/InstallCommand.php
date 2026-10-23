@@ -98,12 +98,8 @@ class InstallCommand extends Command
      */
     public function installRoadRunnerServer()
     {
-        if (! $this->ensureRoadRunnerPackageIsInstalled()) {
-            return false;
-        }
-
         if (File::exists(base_path('.gitignore'))) {
-            collect(['rr', '.rr.yaml'])
+            collect(['rr', 'rr.exe', '.rr.yaml'])
                 ->each(function ($file) {
                     $contents = File::get(base_path('.gitignore'));
                     if (! Str::contains($contents, $file.PHP_EOL)) {
