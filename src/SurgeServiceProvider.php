@@ -111,6 +111,7 @@ class SurgeServiceProvider extends ServiceProvider
         }
 
         $this->registerCacheDriver();
+        $this->registerPollProcess();
         $this->registerCommands();
         $this->registerHttpTaskHandlingRoutes();
         $this->registerPublishing();
@@ -152,6 +153,18 @@ class SurgeServiceProvider extends ServiceProvider
         $this->app->singleton(Listeners\PrepareLunaForNextOperation::class);
         $this->app->singleton(Listeners\ReportException::class);
         $this->app->singleton(Listeners\StopWorkerIfNecessary::class);
+    }
+
+    /**
+     * Register the bot long polling process when polling is enabled.
+     *
+     * @return void
+     */
+    protected function registerPollProcess()
+    {
+        if ($this->app->runningInConsole() && $this->app['config']->get('surge.polling')) {
+            Facades\Surge::process(PollProcess::class, 'bot-poller', coroutine: false);
+        }
     }
 
     /**

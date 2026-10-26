@@ -158,6 +158,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bot Long Polling
+    |--------------------------------------------------------------------------
+    |
+    | Instead of a webhook, the bot may receive its updates with long polling:
+    | a background process calls getUpdates for every bot connection and posts
+    | each update to this server, where it is handled like a webhook update.
+    | You may also pass --polling to surge:start.
+    |
+    */
+
+    'polling' => env('SURGE_POLLING', false),
+
+    'polling_concurrency' => env('SURGE_POLLING_CONCURRENCY', 10),
+
+    /*
+    |--------------------------------------------------------------------------
     | Surge Swoole Tables
     |--------------------------------------------------------------------------
     |

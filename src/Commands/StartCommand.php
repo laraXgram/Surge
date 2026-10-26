@@ -4,6 +4,8 @@ namespace LaraGram\Surge\Commands;
 
 use LaraGram\Console\Attribute\AsCommand;
 use LaraGram\Console\Command\SignalableCommandInterface;
+use LaraGram\Surge\Facades\Surge;
+use LaraGram\Surge\PollProcess;
 
 #[AsCommand(name: 'surge:start')]
 class StartCommand extends Command implements SignalableCommandInterface
@@ -31,7 +33,8 @@ class StartCommand extends Command implements SignalableCommandInterface
                     {--http-redirect : Enable HTTP to HTTPS redirection (only enabled if --https is passed) [FrankenPHP only]}
                     {--watch : Automatically reload the server when the application is modified}
                     {--poll : Use file system polling while watching in order to watch files over a network}
-                    {--log-level= : Log messages at or above the specified log level}';
+                    {--log-level= : Log messages at or above the specified log level}
+                    {--polling : Receive bot updates with long polling instead of a webhook}';
 
     /**
      * The command's description.
@@ -48,6 +51,11 @@ class StartCommand extends Command implements SignalableCommandInterface
     public function handle()
     {
         $server = $this->option('server') ?: config('surge.server');
+
+        // With the "polling" option set, the service provider registers the poller already.
+        if ($this->option('polling') && ! config('surge.polling')) {
+            Surge::process(PollProcess::class, 'bot-poller', coroutine: false);
+        }
 
         return match ($server) {
             'swoole' => $this->startSwooleServer(),
