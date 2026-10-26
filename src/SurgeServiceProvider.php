@@ -188,6 +188,7 @@ class SurgeServiceProvider extends ServiceProvider
                 Commands\StartRoadRunnerCommand::class,
                 Commands\StartSwooleCommand::class,
                 Commands\StartFrankenPhpCommand::class,
+                Commands\ProcessCommand::class,
                 Commands\ReloadCommand::class,
                 Commands\StatusCommand::class,
                 Commands\StopCommand::class,

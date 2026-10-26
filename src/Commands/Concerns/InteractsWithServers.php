@@ -4,6 +4,7 @@ namespace LaraGram\Surge\Commands\Concerns;
 
 use InvalidArgumentException;
 use LaraGram\Surge\Exceptions\ServerShutdownException;
+use LaraGram\Surge\ProcessSupervisor;
 use LaraGram\Console\Process\ExecutableFinder;
 use LaraGram\Console\Process\Process;
 
@@ -27,6 +28,9 @@ trait InteractsWithServers
 
         $watcher = $this->startServerWatcher();
 
+        // Swoole forks and restarts the background processes itself (bin/swoole-server).
+        $processes = $type === 'swoole' ? null : ProcessSupervisor::fromConfig()->start();
+
         try {
             $usleepBetweenIterations = config('surge.usleep_between_writing_server_output') ??
                 $_ENV['LARAGRAM_SURGE_USLEEP_BETWEEN_WRITING_SERVER_OUTPUT'] ??
@@ -34,6 +38,10 @@ trait InteractsWithServers
 
             while ($server->isRunning()) {
                 $this->writeServerOutput($server);
+
+                $processes?->supervise(fn ($line, $isError) => $isError
+                    ? $this->components->error($line)
+                    : $this->raw($line));
 
                 if ($watcher->isRunning() &&
                     $watcher->getIncrementalOutput()) {
@@ -56,6 +64,8 @@ trait InteractsWithServers
         } catch (ServerShutdownException) {
             return 1;
         } finally {
+            $processes?->stop();
+
             $this->stopServer();
         }
 
