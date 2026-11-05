@@ -123,7 +123,8 @@ class SwooleExtension
     {
         $package = match (select(
             label: "Which extension do you want to use?",
-            options: ['OpenSwoole', 'Swoole']
+            options: ['OpenSwoole', 'Swoole'],
+            default: extension_loaded('openswoole') ? 'OpenSwoole' : 'Swoole'
         )) {
             'OpenSwoole' => 'openswoole/core',
             'Swoole' => 'swoole/ide-helper'
