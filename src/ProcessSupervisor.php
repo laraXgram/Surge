@@ -91,7 +91,7 @@ class ProcessSupervisor
     {
         foreach ($this->processes as $entry) {
             if ($entry['process']?->isRunning()) {
-                $entry['process']->stop(5, SIGTERM);
+                $entry['process']->stop(5, \defined('SIGTERM') ? SIGTERM : null);
             }
         }
 

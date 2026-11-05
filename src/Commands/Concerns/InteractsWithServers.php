@@ -181,7 +181,7 @@ trait InteractsWithServers
      */
     public function getSubscribedSignals(): array
     {
-        return [SIGINT, SIGTERM, SIGHUP];
+        return \defined('SIGINT') ? [SIGINT, SIGTERM, SIGHUP] : [];
     }
 
     /**
