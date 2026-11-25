@@ -59,7 +59,9 @@ class ApplicationFactory
             $kernel = $app->make(BotKernelContract::class)
         ))->getMethod('bootstrappers');
 
-        $method->setAccessible(true);
+        if (PHP_VERSION_ID < 80100) {
+            $method->setAccessible(true);
+        }
 
         return $this->injectBootstrapperBefore(
             RegisterProviders::class,
